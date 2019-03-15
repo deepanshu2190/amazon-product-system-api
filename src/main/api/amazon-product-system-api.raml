@@ -1,0 +1,52 @@
+#%RAML 1.0
+baseUri: localhost:8011/api/product
+title: Sample API
+/product:
+  get:
+    responses: 
+      '200':
+        description: Get All Product Details
+        body: 
+          application/json: 
+            example: { "prodid": "", "brand": "", "prodname": "", "price": "" }
+  post:
+    body: 
+      application/json: 
+        example: { "prodid": "", "brand": "", "prodname": "", "price": "" }
+    responses: 
+      '200':
+        description: Insert Prodct Details
+        body: 
+          application/json: 
+            example: 
+              {"Status": "Added"}
+  '/{prodid}':
+    get:
+      responses: 
+        '200':
+          description: Get Product Details
+          body: 
+            application/json: 
+              example: { "prodid": "", "brand": "", "prodname": "", "price": "" }
+    put:
+      body: 
+        application/json: 
+          example: { "prodid": "", "brand": "", "prodname": "", "price": "" }
+      responses: 
+        '200':
+          description: 
+          body: 
+            application/json: 
+              example:
+                {"Status": "Updated"}
+    delete:
+      body: 
+        application/json: 
+          example: { "prodid": "", "brand": "", "prodname": "", "price": "" }
+      responses: 
+        '200':
+          description: 
+          body: 
+            application/json:
+              example:
+                {"Status": "Deleted"}                                                             

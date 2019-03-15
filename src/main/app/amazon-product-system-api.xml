@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="amazon-product-system-api-httpListenerConfig" host="localhost" port="8011" doc:name="HTTP Listener Configuration" />
+    <apikit:config name="amazon-product-system-api-config" raml="amazon-product-system-api.raml" consoleEnabled="false" doc:name="Router" />
+    <db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" password="1234" database="amazon" doc:name="MySQL Configuration" />
+    <flow name="amazon-product-system-api-main">
+        <http:listener config-ref="amazon-product-system-api-httpListenerConfig" path="/api/*" doc:name="HTTP" />
+        <apikit:router config-ref="amazon-product-system-api-config" doc:name="APIkit Router" />
+        <exception-strategy ref="amazon-product-system-api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy" />
+    </flow>
+    <flow name="amazon-product-system-api-console">
+        <http:listener config-ref="amazon-product-system-api-httpListenerConfig" path="/console/*" doc:name="HTTP" />
+        <apikit:console config-ref="amazon-product-system-api-config" doc:name="APIkit Console" />
+    </flow>
+    <flow name="get:/product:amazon-product-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String" />
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"select * from product"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="Get All Product Details &quot;#[payload]&quot;" level="INFO" doc:name="logProductDetails" />
+        <flow-ref name="getAmazon-product-system-apiSub_Flow" doc:name="Flow Reference" />
+    </flow>
+    <sub-flow name="getAmazon-product-system-apiSub_Flow">
+        <logger level="INFO" doc:name="Logger" />
+        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:select>
+        <logger level="INFO" doc:name="Logger" />
+    </sub-flow>
+    <flow name="post:/product:amazon-product-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String" />
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"insert into product (prodid, brand, prodname, price) values (
+"
+++ "'" ++ payload.prodid ++ "'" ++ ","
+++ "'" ++ payload.brand ++ "'" ++ ","
+++ "'" ++ payload.prodname ++ "'" ++ ","
+++ "'" ++ payload.price ++ "'" ++ ")"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger" />
+        <flow-ref name="PostAmazon-product-system-apiSub_Flow" doc:name="PostAmazon-product-system-apiSub_Flow" />
+    </flow>
+    <flow name="put:/product/{prodid}:amazon-product-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"UPDATE train SET prodname = '" ++ inboundProperties.'http.uri.params'.prodname ++ "'
+where prodid = '" ++ payload.prodid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="logProductUpdate"/>
+        <flow-ref name="modifyAmazon-product-system-apiSub_Flow" doc:name="modifyAmazon-product-system-apiSub_Flow"/>
+
+    </flow>
+    <sub-flow name="modifyAmazon-product-system-apiSub_Flow">
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+        <db:update config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:update>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <flow name="delete:/product/{prodid}:amazon-product-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <flow-ref name="deleteAmazon-product-system-apiSub_Flow" doc:name="deleteAmazon-product-system-apiSub_Flow"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"delete from product where prodid= '" ++ inboundProperties.'http.uri.params'.prodid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="logDeleteProduct"/>
+
+    </flow>
+    <sub-flow name="deleteAmazon-product-system-apiSub_Flow">
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+        <db:delete config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:delete>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <flow name="get:/product/{prodid}:amazon-product-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"select * from product where prodid= '" ++ inboundProperties.'http.uri.params'.prodid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[message.inboundProperties.'http.uri.params']" level="INFO" doc:name="Logger"/>
+        <flow-ref name="getAmazonby-product-system-apiSub_Flow" doc:name="getAmazonby-product-system-apiSub_Flow"/>
+
+    </flow>
+    <sub-flow name="getAmazonby-product-system-apiSub_Flow">
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:select>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="PostAmazon-product-system-apiSub_Flow">
+        <logger level="INFO" doc:name="Logger" />
+        <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:insert>
+        <logger level="INFO" doc:name="Logger" />
+    </sub-flow>
+    <apikit:mapping-exception-strategy name="amazon-product-system-api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>
